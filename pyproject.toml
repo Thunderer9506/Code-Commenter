@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.128.0",
+    "langchain>=1.2.8",
+    "langchain-groq>=1.1.2",
     "requests>=2.32.5",
     "streamlit>=1.53.1",
 ]
