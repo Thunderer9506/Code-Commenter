@@ -11,7 +11,7 @@ class QuestionAgentError(Exception):
         super().__init__(self.message)
 
 sysMsg = '''
-You are a Senior QA Engineer. Your only job is to add Google-Style Docstrings and Type Hints to the following code. 
+You are a Senior QA Engineer. Your only job is to add User mentioned style Docstrings and Type Hints to the following code. 
 Do NOT refactor the logic. Output only the valid Python code.
 Do Not use this
     ```python
