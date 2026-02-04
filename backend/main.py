@@ -1,10 +1,10 @@
-from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, HTTPException, BackgroundTasks, status, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from Agent.main import Agent
 from uuid import uuid1
 import os
-from typing import Optional, Literal, List
+from typing import Literal,Annotated
 
 
 
@@ -32,11 +32,11 @@ def inputFile(content: str | bytes, id: str, folder: Literal["input", "output"] 
         return False
     return True
 
-def write_code(file_content, id: str):
+def write_code(file_content, id: str, style:str):
     try:
         init_agent = Agent()
         # If generateCode is synchronous:
-        refactored_code = init_agent.generateCode(file_content.decode('utf-8'))
+        refactored_code = init_agent.generateCode(file_content.decode('utf-8')+f"\n\n write in {style} and do not make any mistake")
         # If generateCode is async, change this function to async and await it instead.
         success = inputFile(refactored_code, id, "output")  # type: ignore
         if not success:
@@ -44,8 +44,8 @@ def write_code(file_content, id: str):
     except Exception as e:
         print("write_code failed:", e)
     
-@app.post("/upload")
-async def upload_file(py_file: UploadFile, background_tasks: BackgroundTasks):
+@app.post("/upload", status_code=status.HTTP_202_ACCEPTED)
+async def upload_file(py_file: Annotated[UploadFile, File(...)], background_tasks: BackgroundTasks, style:str = "Google Style"):
     if not py_file:
         raise HTTPException(400, "File not uploaded")
     if py_file.content_type != 'text/x-python':
@@ -55,10 +55,10 @@ async def upload_file(py_file: UploadFile, background_tasks: BackgroundTasks):
     file_content = await py_file.read()
     inputFile(file_content, id, "input")  # type: ignore
 
-    background_tasks.add_task(write_code, file_content, id)  # use instance
+    background_tasks.add_task(write_code, file_content, id, style)  # use instance
     return {"message": "Processing started", "task_id": id}
 
-@app.get("/status/{task_id}")
+@app.get("/status/{task_id}",status_code=status.HTTP_200_OK)
 def check_status(task_id:str|None):
     if not task_id:
         raise HTTPException(400,"Task Id not provided")
@@ -68,7 +68,7 @@ def check_status(task_id:str|None):
     else:
         return {"Message":"File has not been processed","Success": False}
 
-@app.get("/download/{task_id}")
+@app.get("/download/{task_id}",status_code=status.HTTP_200_OK)
 def send_file(task_id:str|None):
     if not task_id:
         raise HTTPException(400,"Task Id not provided")
