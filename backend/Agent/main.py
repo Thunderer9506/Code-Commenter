@@ -13,6 +13,9 @@ class QuestionAgentError(Exception):
 sysMsg = '''
 You are a Senior QA Engineer. Your only job is to add Google-Style Docstrings and Type Hints to the following code. 
 Do NOT refactor the logic. Output only the valid Python code.
+Do Not use this
+    ```python
+    ```
 '''
 
 
@@ -32,7 +35,7 @@ class Agent:
         except Exception as e:
             raise QuestionAgentError(f"Failed to initialize agent: {e}")
         
-    def getQuestion(self, input: str):
+    def generateCode(self, input: str):
         try:
             result = self.agent.invoke(
                 {"messages": HumanMessage(input)}, #type:ignore
