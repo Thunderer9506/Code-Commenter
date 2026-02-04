@@ -1,9 +1,11 @@
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from Agent.main import Agent
 from uuid import uuid1
 import os
 from typing import Optional, Literal, List
+
 
 
 app = FastAPI()
@@ -14,11 +16,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 #------------ Utils ------------
-def inputFile(content: str | bytes, filename: str, id: str, folder: Literal["input", "output"] = "input"):
+def inputFile(content: str | bytes, id: str, folder: Literal["input", "output"] = "input"):
     try:
         folder_name = f'./backend/temp/{folder}'
         os.makedirs(folder_name, exist_ok=True)
-        full_path = os.path.join(folder_name, f"{filename}_{id}.py")
+        full_path = os.path.join(folder_name, f"{id}.py")
         if isinstance(content, (bytes, bytearray)):
             mode = "wb"
         else:
@@ -30,13 +32,13 @@ def inputFile(content: str | bytes, filename: str, id: str, folder: Literal["inp
         return False
     return True
 
-def write_code(filename, file_content, id: str):
+def write_code(file_content, id: str):
     try:
         init_agent = Agent()
         # If generateCode is synchronous:
         refactored_code = init_agent.generateCode(file_content.decode('utf-8'))
         # If generateCode is async, change this function to async and await it instead.
-        success = inputFile(refactored_code, filename, id, "output")  # type: ignore
+        success = inputFile(refactored_code, id, "output")  # type: ignore
         if not success:
             print("Failed to write output file")
     except Exception as e:
@@ -51,15 +53,31 @@ async def upload_file(py_file: UploadFile, background_tasks: BackgroundTasks):
 
     id = str(uuid1())
     file_content = await py_file.read()
-    inputFile(file_content, py_file.filename, id, "input")  # type: ignore
+    inputFile(file_content, id, "input")  # type: ignore
 
-    background_tasks.add_task(write_code, py_file.filename, file_content, id)  # use instance
+    background_tasks.add_task(write_code, file_content, id)  # use instance
     return {"message": "Processing started", "task_id": id}
 
 @app.get("/status/{task_id}")
-def check_status():
-    pass
+def check_status(task_id:str|None):
+    if not task_id:
+        raise HTTPException(400,"Task Id not provided")
+    
+    if os.path.exists(f'./backend/temp/input/{task_id}.py') and os.path.exists(f'./backend/temp/output/{task_id}.py'):
+        return {"Message":"File has been processed","Success": True}
+    else:
+        return {"Message":"File has not been processed","Success": False}
 
-@app.get("/result/{task_id}")
-def check_result():
-    pass
+@app.get("/download/{task_id}")
+def send_file(task_id:str|None):
+    if not task_id:
+        raise HTTPException(400,"Task Id not provided")
+    full_path = f'./backend/temp/output/{task_id}.py'
+    if not os.path.exists(full_path):
+        return {"Message":"File has not been processed","Success": False}
+    
+    return FileResponse(
+        path=full_path,
+        media_type='text/x-python',
+        filename="main.py"
+    )
