@@ -38,7 +38,7 @@ with st.sidebar:
 def upload_file(file, style):
     """Sends the file to the backend and returns the task_id."""
     try:
-        files = {"file": (file.name, file, "text/x-python")}
+        files = {"py_file": (file.name, file, "text/x-python")}
         params = {"style": style}
         response = requests.post(f"{base_url}/upload", files=files, params=params)
         
@@ -56,21 +56,24 @@ def check_status(task_id):
     try:
         response = requests.get(f"{base_url}/status/{task_id}")
         if response.status_code == 200:
-            return response.json().get("status")
-        return "unknown"
-    except:
-        return "error"
-
-def get_result(task_id):
-    """Fetches the final documented code."""
-    try:
-        response = requests.get(f"{base_url}/result/{task_id}")
-        if response.status_code == 200:
-            return response.json().get("code", "")
+            return response.json().get("Success")
         else:
             st.error("Failed to fetch result.")
             return None
     except:
+        return None
+
+def get_result(task_id):
+    """Fetches the final documented code."""
+    try:
+        response = requests.get(f"{base_url}/download/{task_id}")
+        if response.status_code == 200:
+            return response.text
+        else:
+            st.error(f"Failed to fetch result: {response.status_code} {response.text}")
+            return None
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Could not connect to Backend. Is it running?")
         return None
 
 # --- MAIN UI LAYOUT ---
@@ -112,9 +115,8 @@ with col2:
         for i in range(1, 101):
             status = check_status(st.session_state.task_id)
             
-            status_box.info(f"Task ID: {st.session_state.task_id}\n\nStatus: **{status.upper()}**")
-            
-            if status == "completed":
+            status_box.info(f"Task ID: {st.session_state.task_id}\n\nStatus: **{str(status)}**")
+            if status:
                 st.session_state.status = "completed"
                 progress_bar.progress(100)
                 # Fetch the result immediately
