@@ -40,7 +40,14 @@ def upload_file(file, style):
     try:
         files = {"py_file": (file.name, file, "text/x-python")}
         params = {"style": style}
-        response = requests.post(f"{base_url}/upload", files=files, params=params)
+        # Mitigation: Use a restricted base URL or validate input to prevent SSRF
+        # For this fix, we assume the user intends to connect to localhost and enforce it.
+        safe_base_url = "http://127.0.0.1:8000"
+        if base_url != safe_base_url:
+            st.warning("⚠️ Warning: For security reasons, API calls are restricted to http://127.0.0.1:8000.")
+            return None # Fail if the user tries to connect elsewhere
+        
+        response = requests.post(f"{safe_base_url}/upload", files=files, params=params)
         
         if response.status_code == 202:
             return response.json().get("task_id")
@@ -54,7 +61,9 @@ def upload_file(file, style):
 def check_status(task_id):
     """Polls the backend to check if processing is done."""
     try:
-        response = requests.get(f"{base_url}/status/{task_id}")
+        # Mitigation: Use a restricted base URL for status checks
+        safe_base_url = "http://127.0.0.1:8000"
+        response = requests.get(f"{safe_base_url}/status/{task_id}")
         if response.status_code == 200:
             return response.json().get("Success")
         else:
@@ -66,7 +75,9 @@ def check_status(task_id):
 def get_result(task_id):
     """Fetches the final documented code."""
     try:
-        response = requests.get(f"{base_url}/download/{task_id}")
+        # Mitigation: Use a restricted base URL for download requests
+        safe_base_url = "http://127.0.0.1:8000"
+        response = requests.get(f"{safe_base_url}/download/{task_id}")
         if response.status_code == 200:
             return response.text
         else:
@@ -140,17 +151,3 @@ with col2:
         # Download Button
         st.download_button(
             label="💾 Download Result",
-            data=st.session_state.processed_code,
-            file_name=f"documented_{uploaded_file.name}", # type: ignore
-            mime="text/x-python"
-        )
-        
-        if st.button("🔄 Start Over"):
-            st.session_state.status = "idle"
-            st.session_state.task_id = None
-            st.session_state.processed_code = None
-            st.rerun()
-            
-    # STATE: IDLE
-    else:
-        st.info("Waiting for file upload...")
