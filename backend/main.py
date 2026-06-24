@@ -7,7 +7,6 @@ import os
 from typing import Literal,Annotated
 
 
-
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -63,7 +62,11 @@ def check_status(task_id:str|None):
     if not task_id:
         raise HTTPException(400,"Task Id not provided")
     
-    if os.path.exists(f'./backend/temp/input/{task_id}.py') and os.path.exists(f'./backend/temp/output/{task_id}.py'):
+    # Use os.path.join to safely construct paths and prevent path traversal.
+    input_path = os.path.join('./backend/temp/input', f"{task_id}.py")
+    output_path = os.path.join('./backend/temp/output', f"{task_id}.py")
+
+    if os.path.exists(input_path) and os.path.exists(output_path):
         return {"Message":"File has been processed","Success": True}
     else:
         return {"Message":"File has not been processed","Success": False}
@@ -72,7 +75,8 @@ def check_status(task_id:str|None):
 def send_file(task_id:str|None):
     if not task_id:
         raise HTTPException(400,"Task Id not provided")
-    full_path = f'./backend/temp/output/{task_id}.py'
+    # Use os.path.join to safely construct paths and prevent path traversal.
+    full_path = os.path.join('./backend/temp/output', f"{task_id}.py")
     if not os.path.exists(full_path):
         return {"Message":"File has not been processed","Success": False}
     
